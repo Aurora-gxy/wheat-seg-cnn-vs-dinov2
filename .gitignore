@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+data/
+
+# Project outputs that are too large / reproducible
+checkpoints/
+cache/
+results/predictions/
+*.pth
+.DS_Store

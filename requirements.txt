@@ -1,0 +1,12 @@
+numpy
+pandas
+matplotlib
+pillow
+opencv-python
+scikit-learn
+tqdm
+pyyaml
+torch>=2.2
+torchvision
+segmentation-models-pytorch
+timm

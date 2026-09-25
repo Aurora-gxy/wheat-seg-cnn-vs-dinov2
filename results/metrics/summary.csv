@@ -1,0 +1,2 @@
+model,tag,split,scenario,plant_precision,plant_recall,plant_f1,plant_iou,soil_precision,soil_recall,soil_f1,soil_iou,miou,mf1,pixel_acc,image_mean_miou,image_std_miou,n_images,time_ms_per_image,params_total,params_trainable
+exg_otsu,,test,clean,0.641271,0.545934,0.589775,0.418213,0.793442,0.850995,0.821212,0.696657,0.557435,0.705493,0.750962,0.589645,0.225086,24,2.057891,0,0
