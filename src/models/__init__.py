@@ -3,8 +3,12 @@ from pathlib import Path
 
 from .base import Segmenter
 
-AVAILABLE_MODELS = ["exg_otsu", "deeplabv3plus"]
-TRAINABLE_MODELS = ["deeplabv3plus"]
+AVAILABLE_MODELS = ["exg_otsu", "deeplabv3plus", "dinov2_linear", "dinov2_decoder"]
+TRAINABLE_MODELS = ["deeplabv3plus", "dinov2_linear", "dinov2_decoder"]
+
+# Default learning rates: the whole CNN is fine-tuned (small LR);
+# for DINOv2 only a small head is trained from scratch (larger LR).
+DEFAULT_LR = {"deeplabv3plus": 2e-4, "dinov2_linear": 1e-3, "dinov2_decoder": 1e-3}
 
 
 def get_model(name: str, **kwargs) -> Segmenter:
@@ -15,7 +19,10 @@ def get_model(name: str, **kwargs) -> Segmenter:
     if name == "deeplabv3plus":
         from .cnn import DeepLabV3Plus
         return DeepLabV3Plus(**kwargs)
-    # Added in step 3: "dinov2_linear", "dinov2_decoder"
+    if name in ("dinov2_linear", "dinov2_decoder"):
+        from .dinov2 import DINOv2Segmenter
+        kwargs.setdefault("head", name.split("_", 1)[1])
+        return DINOv2Segmenter(**kwargs)
     raise ValueError(f"Unknown model: {name!r}")
 
 

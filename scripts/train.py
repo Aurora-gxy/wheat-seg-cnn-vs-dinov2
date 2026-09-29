@@ -4,8 +4,12 @@ Run from the project root, e.g.:
     # quick check that everything works (~2-3 min)
     python scripts/train.py --model deeplabv3plus --quick
 
-    # full CNN baseline
-    python scripts/train.py --model deeplabv3plus --epochs 60
+    # CNN baseline
+    python scripts/train.py --model deeplabv3plus --epochs 25 --patience 6 --batch-size 4
+
+    # DINOv2 (frozen backbone, only the head is trained)
+    python scripts/train.py --model dinov2_linear --epochs 25 --patience 6
+    python scripts/train.py --model dinov2_decoder --epochs 25 --patience 6
 
 Outputs:
     checkpoints/<run>.pth                 trained weights (not committed to git)
@@ -23,7 +27,7 @@ import pandas as pd
 from src import config
 from src.data import list_samples
 from src.evaluate import evaluate, print_summary, save_results
-from src.models import TRAINABLE_MODELS, get_model
+from src.models import DEFAULT_LR, TRAINABLE_MODELS, get_model
 from src.models.torch_base import AUGMENTATIONS, TrainConfig
 from src.utils import set_seed
 
@@ -31,16 +35,18 @@ from src.utils import set_seed
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--model", required=True, choices=TRAINABLE_MODELS)
-    p.add_argument("--epochs", type=int, default=60)
+    p.add_argument("--epochs", type=int, default=25)
     p.add_argument("--batch-size", type=int, default=8)
-    p.add_argument("--lr", type=float, default=2e-4)
+    p.add_argument("--lr", type=float, default=None, help="default depends on the model")
     p.add_argument("--weight-decay", type=float, default=1e-4)
     p.add_argument("--loss", default="ce", choices=["ce", "dice", "ce_dice"])
     p.add_argument("--augment", default="basic", choices=list(AUGMENTATIONS))
     p.add_argument("--fraction", type=float, default=1.0, help="share of training images to use")
     p.add_argument("--patience", type=int, default=None, help="early stopping patience (validations)")
     p.add_argument("--seed", type=int, default=config.DEFAULT_SEED)
-    p.add_argument("--no-pretrained", action="store_true", help="train the encoder from scratch")
+    p.add_argument("--no-pretrained", action="store_true", help="do not load pre-trained weights")
+    p.add_argument("--backbone", default="vits14", choices=["vits14", "vitb14"], help="DINOv2 size")
+    p.add_argument("--n-layers", type=int, default=4, help="DINOv2: use features of the last N blocks")
     p.add_argument("--run-name", default=None)
     p.add_argument("--quick", action="store_true", help="2 epochs on 10%% of the data, for testing")
     return p.parse_args()
@@ -50,8 +56,13 @@ def main():
     args = parse_args()
     if args.quick:
         args.epochs, args.fraction = 2, 0.1
+    if args.lr is None:
+        args.lr = DEFAULT_LR[args.model]
+    is_dino = args.model.startswith("dinov2")
     run = args.run_name or (
-        f"{args.model}_{args.loss}_{args.augment}_frac{round(args.fraction * 100)}_seed{args.seed}"
+        f"{args.model}"
+        + (f"_{args.backbone}" if is_dino and args.backbone != "vits14" else "")
+        + f"_{args.loss}_{args.augment}_frac{round(args.fraction * 100)}_seed{args.seed}"
         + ("_quick" if args.quick else "")
     )
     set_seed(args.seed)
@@ -61,6 +72,8 @@ def main():
                       patience=args.patience, seed=args.seed,
                       warmup_epochs=min(2, max(0, args.epochs - 1)))
     model_kwargs = {"pretrained": False} if args.no_pretrained else {}
+    if is_dino:
+        model_kwargs.update(backbone=args.backbone, n_layers=args.n_layers)
     model = get_model(args.model, train_cfg=cfg, **model_kwargs)
 
     train_samples = list_samples("train", fraction=args.fraction, seed=args.seed)
@@ -82,6 +95,7 @@ def main():
         "n_train_images": len(train_samples),
         "fraction": args.fraction,
         "loss": args.loss,
+        "lr": args.lr,
         "augment": args.augment,
         "seed": args.seed,
     })
