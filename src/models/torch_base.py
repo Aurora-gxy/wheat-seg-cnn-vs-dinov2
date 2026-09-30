@@ -24,7 +24,15 @@ from ..metrics import scores_from_confusion
 from ..utils import get_device, set_seed
 from .base import Segmenter
 
-AUGMENTATIONS = {"none": None, "basic": basic_augment}   # "distort" is added in step 4
+def distort_augment(image, mask, rng):
+    """Basic flips/rotations, plus random noise / blur / low light / occlusion on the image only."""
+    from ..distortions import random_distortion
+
+    image, mask = basic_augment(image, mask, rng)
+    return random_distortion(image, rng), mask
+
+
+AUGMENTATIONS = {"none": None, "basic": basic_augment, "distort": distort_augment}
 
 
 @dataclass

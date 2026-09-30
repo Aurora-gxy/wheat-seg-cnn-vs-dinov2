@@ -1,0 +1,7 @@
+run,clean,gaussian_noise,gaussian_blur,low_light,occlusion,noise_blur,blur_low_light,mean_distorted
+deeplabv3plus_ce_basic_frac100_seed42,84.44,56.89,82.8,80.83,77.19,82.04,74.5,75.71
+deeplabv3plus_ce_distort_frac100_seed42,84.31,81.63,84.23,82.16,78.46,82.05,80.46,81.5
+dinov2_decoder_ce_basic_frac100_seed42,86.42,77.67,85.88,74.2,78.83,81.22,74.16,78.66
+dinov2_decoder_ce_distort_frac100_seed42,86.08,81.27,85.61,81.79,78.57,82.5,81.63,81.9
+dinov2_linear_ce_basic_frac100_seed42,72.29,71.79,71.99,72.07,68.39,72.42,71.68,71.39
+exg_otsu,55.74,50.4,57.39,61.67,55.19,55.04,63.51,57.2

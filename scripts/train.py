@@ -28,6 +28,7 @@ from src import config
 from src.data import list_samples
 from src.evaluate import evaluate, print_summary, save_results
 from src.models import DEFAULT_LR, TRAINABLE_MODELS, get_model
+from src.experiment import DEFAULT_BATCH, equal_steps_schedule, run_name
 from src.models.torch_base import AUGMENTATIONS, TrainConfig
 from src.utils import set_seed
 
@@ -36,7 +37,7 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--model", required=True, choices=TRAINABLE_MODELS)
     p.add_argument("--epochs", type=int, default=25)
-    p.add_argument("--batch-size", type=int, default=8)
+    p.add_argument("--batch-size", type=int, default=None, help="default: 4 for the CNN, 8 for DINOv2")
     p.add_argument("--lr", type=float, default=None, help="default depends on the model")
     p.add_argument("--weight-decay", type=float, default=1e-4)
     p.add_argument("--loss", default="ce", choices=["ce", "dice", "ce_dice"])
@@ -48,6 +49,8 @@ def parse_args():
     p.add_argument("--backbone", default="vits14", choices=["vits14", "vitb14"], help="DINOv2 size")
     p.add_argument("--n-layers", type=int, default=4, help="DINOv2: use features of the last N blocks")
     p.add_argument("--run-name", default=None)
+    p.add_argument("--equal-steps", action="store_true",
+                   help="with --fraction < 1: scale epochs so every run gets the same number of updates")
     p.add_argument("--quick", action="store_true", help="2 epochs on 10%% of the data, for testing")
     return p.parse_args()
 
@@ -58,19 +61,22 @@ def main():
         args.epochs, args.fraction = 2, 0.1
     if args.lr is None:
         args.lr = DEFAULT_LR[args.model]
+    if args.batch_size is None:
+        args.batch_size = DEFAULT_BATCH[args.model]
     is_dino = args.model.startswith("dinov2")
-    run = args.run_name or (
-        f"{args.model}"
-        + (f"_{args.backbone}" if is_dino and args.backbone != "vits14" else "")
-        + f"_{args.loss}_{args.augment}_frac{round(args.fraction * 100)}_seed{args.seed}"
-        + ("_quick" if args.quick else "")
-    )
+    run = args.run_name or run_name(args.model, args.loss, args.augment, args.fraction, args.seed,
+                                    args.backbone, args.equal_steps, args.quick)
+
+    epochs, val_every, warmup = args.epochs, 1, min(2, max(0, args.epochs - 1))
+    if args.equal_steps and args.fraction < 1:
+        epochs, val_every, warmup = equal_steps_schedule(args.epochs, args.fraction)
+        print(f"Equal-steps schedule: {epochs} epochs, validating every {val_every} epochs")
     set_seed(args.seed)
 
-    cfg = TrainConfig(epochs=args.epochs, batch_size=args.batch_size, lr=args.lr,
+    cfg = TrainConfig(epochs=epochs, batch_size=args.batch_size, lr=args.lr,
                       weight_decay=args.weight_decay, loss=args.loss, augment=args.augment,
-                      patience=args.patience, seed=args.seed,
-                      warmup_epochs=min(2, max(0, args.epochs - 1)))
+                      patience=args.patience, seed=args.seed, val_every=val_every,
+                      warmup_epochs=warmup)
     model_kwargs = {"pretrained": False} if args.no_pretrained else {}
     if is_dino:
         model_kwargs.update(backbone=args.backbone, n_layers=args.n_layers)
@@ -96,6 +102,8 @@ def main():
         "fraction": args.fraction,
         "loss": args.loss,
         "lr": args.lr,
+        "batch_size": args.batch_size,
+        "equal_steps": bool(args.equal_steps and args.fraction < 1),
         "augment": args.augment,
         "seed": args.seed,
     })

@@ -2,7 +2,7 @@
 
 The same function is reused for every experiment:
   * clean test set               -> distortion=None
-  * robustness test (step 4)     -> distortion=<function that corrupts the image>
+  * robustness test (step 4)     -> distortion=Distortion("gaussian_noise"), etc.
 """
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
@@ -19,10 +19,14 @@ from .utils import Timer
 
 
 def evaluate(model: Segmenter, samples: List[Sample],
-             distortion: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+             distortion: Optional[Callable[[np.ndarray, str], np.ndarray]] = None,
              save_pred_dir: Optional[Path] = None,
              verbose: bool = True) -> Tuple[Dict, List[Dict]]:
-    """Returns (summary, per_image_rows)."""
+    """Returns (summary, per_image_rows).
+
+    distortion(image, image_name) -> corrupted image; the name is passed so that the corruption
+    is identical for every model (see src/distortions.py).
+    """
     metrics = SegMetrics()
     times = []
     if save_pred_dir is not None:
@@ -31,7 +35,7 @@ def evaluate(model: Segmenter, samples: List[Sample],
     for i, sample in enumerate(samples):
         image, gt = load_sample(sample)
         if distortion is not None:
-            image = distortion(image)
+            image = distortion(image, sample.name)
 
         with Timer() as t:
             pred = model.predict(image)

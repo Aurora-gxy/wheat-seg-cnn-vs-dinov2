@@ -1,0 +1,5 @@
+model,n_seeds,test_mIoU_%,plant_IoU_%,mF1_%,trainable_params_M,total_params_M,train_time_min,ms_per_image
+exg_otsu,1,55.7,41.8,70.5,0.0,0.0,0.0,2.1
+dinov2_linear,3,72.5 ± 0.2,65.4 ± 0.2,83.8 ± 0.1,0.006,22.1,4.6,80.0
+deeplabv3plus,3,85.2 ± 0.7,80.6 ± 0.9,92.0 ± 0.4,26.678,26.7,17.8,89.5
+dinov2_decoder,3,86.3 ± 0.3,81.8 ± 0.4,92.6 ± 0.2,0.798,22.9,9.1,102.6
